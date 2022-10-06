@@ -18,7 +18,7 @@ import json
 import os
 
 
-SPLITS = ["train", "dev", "devtest", "teststd"]
+SPLITS = ["train", "dev", "devtest"] # , "teststd"]
 
 
 def get_image_name(scene_ids, turn_ind):
@@ -58,6 +58,10 @@ def main(args):
         print(f"Reading: {read_path}")
         with open(read_path, "r") as file_id:
             dialogs = json.load(file_id)
+
+        # Result save path.
+        if not os.path.exists(args["ambiguous_candidates_save_path"]):
+            os.makedirs(args["ambiguous_candidates_save_path"])
 
         # Reformat into simple strings with positive and negative labels.
         # (dialog string, label)

@@ -87,9 +87,13 @@ def main(args):
     train_loader = Dataloader(tokenizer, feature_loader, args["train_file"], args)
     val_loader = Dataloader(tokenizer, feature_loader, args["dev_file"], args)
     devtest_loader = Dataloader(tokenizer, feature_loader, args["devtest_file"], args)
-    teststd_loader = Dataloader(
-        tokenizer, feature_loader, args["teststd_file"], args, hidden_labels=True
-    )
+    # teststd_loader = Dataloader(
+    #     tokenizer, feature_loader, args["teststd_file"], args, hidden_labels=True
+    # )
+
+    # Result save path.
+    if not os.path.exists(args["result_save_path"]):
+        os.makedirs(args["result_save_path"])
 
     # Model.
     model = AmbiguousCandidateIdentifier(tokenizer, args)
@@ -170,21 +174,21 @@ def main(args):
                         f"[devtest]  Rec: {recall:.4f}  "
                         f"|  Prec: {precision:.4f}  |  F1: {f1:.4f}"
                     )
-                    # Get teststd predictions.
-                    save_path = None
-                    if args["result_save_path"]:
-                        save_path = os.path.join(
-                            args["result_save_path"],
-                            f"results_teststd_{num_iters}.json",
-                        )
-                    recall, precision, f1 = evaluate_model(
-                        model,
-                        teststd_loader,
-                        args["batch_size"],
-                        save_path,
-                        hidden_test=True,
-                    )
-                    best_performance["teststd"] = f1
+                    # # Get teststd predictions.
+                    # save_path = None
+                    # if args["result_save_path"]:
+                    #     save_path = os.path.join(
+                    #         args["result_save_path"],
+                    #         f"results_teststd_{num_iters}.json",
+                    #     )
+                    # recall, precision, f1 = evaluate_model(
+                    #     model,
+                    #     teststd_loader,
+                    #     args["batch_size"],
+                    #     save_path,
+                    #     hidden_test=True,
+                    # )
+                    # best_performance["teststd"] = f1
                     # print(f"Accuracy [teststd]: {accuracy}")
                     print(f"Current best performance: {best_performance}")
             model.train()
@@ -201,7 +205,7 @@ if __name__ == "__main__":
     parser.add_argument("--dev_file", required=True, help="Path to dev file")
     parser.add_argument("--devtest_file", required=True, help="Path to devtest file")
     parser.add_argument(
-        "--teststd_file", required=True, help="Path to public teststd file"
+        "--teststd_file", required=False, help="Path to public teststd file"
     )
     parser.add_argument(
         "--result_save_path", default=None, help="Path to save devtest results"
