@@ -75,7 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--dev_file", required=True, help="Path to dev file")
     parser.add_argument("--devtest_file", required=True, help="Path to devtest file")
     parser.add_argument(
-        "--teststd_file", required=True, help="Path to public teststd file"
+        "--teststd_file", required=False, help="Path to public teststd file"
     )
     parser.add_argument(
         "--scene_json_folder", default=None, help="Path to scene JSON files"
