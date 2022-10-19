@@ -138,10 +138,10 @@ class VisualFeatureLoader:
 
     def __getitem__(self, label):
         """Get the feature given image label."""
-        assert (
-            label in self._features or label in self.UNAVAILABLE_IMAGES
-        ), f"{label} not found!"
-        if label in self.UNAVAILABLE_IMAGES:
+        # assert (
+        #     label in self._features or label in self.UNAVAILABLE_IMAGES
+        # ), f"{label} not found!"
+        if label not in self._features:
             return self._zero_feature
         return self._features[label]
 
