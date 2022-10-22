@@ -21,6 +21,7 @@ In this edition of the challenge, we specifically focus on the key challenge of 
 
 ### Latest News
 
+* **[Oct 21, 2022]** Test-std dataset (SIMMC v2.1) is released. Start of Challenge Period 2.
 * **[June 28, 2022]** DSTC11-SIMMC2.1 Challenge announcement. Training / development datasets (SIMMC v2.1) are released.
 
 
@@ -39,7 +40,7 @@ In this edition of the challenge, we specifically focus on the key challenge of 
 | June 28, 2022 | Training & development data released |
 | ***Oct 21***, 2022  | Test-Std data released, End of Challenge Phase 1 |
 | ***Oct 28***, 2022 | Entry submission deadline, End of Challenge Phase 2 |
-| ***By Early November***, 2022 | Final results announced |
+| ***Nov 4 (latest)***, 2022 | Final results announced |
 
 ## Track Description
 
