@@ -7,12 +7,12 @@ else
 fi
 
 # Generate sentences (Furniture, multi-modal)
-python -m gpt2_dst.scripts.run_generation \
+CUDA_VISIBLE_DEVICES=1 python -m gpt2_dst.scripts.run_generation \
     --model_type=gpt2 \
-    --model_name_or_path="${PATH_DIR}"/gpt2_dst/save/model/ \
+    --model_name_or_path="${PATH_DIR}/checkpoint-73500" \
     --num_return_sequences=1 \
     --length=100 \
     --stop_token='<EOS>' \
-    --prompts_from_file="${PATH_DIR}"/gpt2_dst/data/simmc2.1_dials_dstc11_devtest_predict.txt \
-    --path_output="${PATH_DIR}"/gpt2_dst/results/simmc2.1_dials_dstc11_devtest_predicted.txt
+    --prompts_from_file=/home/holy/projects/ambiguous-mm-dialogue/preprocessed_data/mm_coref/gpt2_dst/data/simmc2.1_dials_dstc11_devtest_predict.txt \
+    --path_output="${PATH_DIR}"/results/simmc2.1_dials_dstc11_devtest_predicted.txt
 
