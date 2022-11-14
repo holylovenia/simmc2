@@ -7,9 +7,9 @@ else
 fi
 
 # Generate sentences (Furniture, multi-modal)
-CUDA_VISIBLE_DEVICES=1 python -m gpt2_dst.scripts.run_generation \
+CUDA_VISIBLE_DEVICES=0 python -m gpt2_dst.scripts.run_generation \
     --model_type=gpt2 \
-    --model_name_or_path="${PATH_DIR}/checkpoint-73500" \
+    --model_name_or_path="${PATH_DIR}/checkpoint-95000" \
     --num_return_sequences=1 \
     --length=100 \
     --stop_token='<EOS>' \

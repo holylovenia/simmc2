@@ -375,6 +375,10 @@ def d_f1(n_true, n_pred, n_correct):
     p = n_correct / n_pred
     f1 = 2 * p * r / (p + r) if p + r != 0 else 0
 
+    # print("f1", f1, "dr", dr, "r", r, "dp", dp, "p", p)
+    if f1 == 0:
+        return 0.0
+
     d_f1 = 0.5 * f1 ** 2 * (dr / r ** 2 + dp / p ** 2)
     return d_f1
 

@@ -365,7 +365,6 @@ command line""",
                 )
 
                 generated_sequences.append(total_sequence)
-                print(total_sequence)
 
             results.append(generated_sequences)
 

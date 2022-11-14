@@ -117,6 +117,12 @@ class LineByLineTextDataset(Dataset):
                 for line in f.read().splitlines()
                 if (len(line) > 0 and not line.isspace())
             ]
+        
+        # for i, line in enumerate(lines):
+        #     print(i, line)
+        #     print()
+
+        # quit()
 
         self.examples = tokenizer.batch_encode_plus(
             lines, add_special_tokens=True, max_length=block_size

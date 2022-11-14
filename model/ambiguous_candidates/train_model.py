@@ -87,6 +87,15 @@ def main(args):
     train_loader = Dataloader(tokenizer, feature_loader, args["train_file"], args)
     val_loader = Dataloader(tokenizer, feature_loader, args["dev_file"], args)
     devtest_loader = Dataloader(tokenizer, feature_loader, args["devtest_file"], args)
+    print("=== train")
+    for i in range(train_loader.num_instances):
+        batch = train_loader.get_indexed_data([i])
+    print("=== val")
+    for i in range(val_loader.num_instances):
+        batch = val_loader.get_indexed_data([i])
+    print("=== devtest")
+    for i in range(devtest_loader.num_instances):
+        batch = devtest_loader.get_indexed_data([i])
     # teststd_loader = Dataloader(
     #     tokenizer, feature_loader, args["teststd_file"], args, hidden_labels=True
     # )

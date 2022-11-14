@@ -76,6 +76,9 @@ class Dataloader:
 
             # Get the ambiguous candidates and map it local ids.
             global_ambiguous_candidates = dialog_datum["ambiguous_candidates"]
+            for candidate in global_ambiguous_candidates:
+                if candidate not in object_map:
+                    object_map.append(candidate)
             local_ambiguous_candidates = [
                 object_map.index(ii) for ii in global_ambiguous_candidates
             ]
@@ -142,7 +145,9 @@ class VisualFeatureLoader:
         #     label in self._features or label in self.UNAVAILABLE_IMAGES
         # ), f"{label} not found!"
         if label not in self._features:
+            # print(f"zero|{label}")
             return self._zero_feature
+        # print(f"present|{label}")
         return self._features[label]
 
     def cuda(self):
