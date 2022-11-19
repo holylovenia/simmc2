@@ -292,6 +292,39 @@ def convert_json_to_flattened(
             json.dump(special_tokens, f_special_tokens)
 
 
+def get_image_name(scene_ids, turn_ind):
+    """Given scene ids and turn index, get the image name.
+    """
+    sorted_scene_ids = sorted(
+        ((int(key), val) for key, val in scene_ids.items()),
+        key=lambda x: x[0],
+        reverse=True
+    )
+    # NOTE: Hardcoded to only two scenes.
+    if turn_ind >= sorted_scene_ids[0][0]:
+        scene_label = sorted_scene_ids[0][1]
+    else:
+        scene_label = sorted_scene_ids[1][1]
+    image_label = scene_label
+    if "m_" in scene_label:
+        image_label = image_label.replace("m_", "")
+    return f"{image_label}.png", scene_label
+
+
+def get_object_mapping(scene_label):
+    """Get the object mapping for a given scene.
+    """
+    scene_json_path = os.path.join(
+        "/home/holy/datasets/simmc2.1/public/", f"{scene_label}_scene.json"
+    )
+    if not os.path.isfile(scene_json_path):
+        scene_json_path = scene_json_path.replace("m_", "")
+    with open(scene_json_path, "r") as file_id:
+        scene_objects = json.load(file_id)["scenes"][0]["objects"]
+    object_map = [ii["index"] for ii in scene_objects]
+    return object_map
+
+
 def convert_json_to_json(
     input_path_json,
     output_path_predict,
@@ -334,19 +367,13 @@ def convert_json_to_json(
         with open(input_path_special_tokens, "r") as f_in:
             special_tokens = json.load(f_in)
     else:
-        special_tokens = {"eos_token": END_OF_SENTENCE}
+        special_tokens = {}
         additional_special_tokens = []
-        if use_belief_states:
-            additional_special_tokens.append(END_OF_BELIEF)
-        if use_response:
-            additional_special_tokens.append(START_OF_RESPONSE)
         if use_multimodal_contexts:
             additional_special_tokens.extend(
                 [START_OF_MULTIMODAL_CONTEXTS, END_OF_MULTIMODAL_CONTEXTS]
             )
         special_tokens["additional_special_tokens"] = additional_special_tokens
-
-    print(special_tokens, use_multimodal_contexts)
 
     if output_path_special_tokens != "":
         # If a new output path for special tokens is given,
@@ -355,12 +382,9 @@ def convert_json_to_json(
 
     for _, dialog in enumerate(data):
 
-        # print(dialog)
-        # quit()
-
         domain = dialog["domain"]
         dialog_id = dialog["dialogue_idx"]
-        object_map = dialog["object_map"]
+        scene_ids = dialog["scene_ids"]
         prev_asst_uttr = None
         prev_turn = None
         lst_context = []
@@ -368,7 +392,13 @@ def convert_json_to_json(
         data_instance = {}
         for turn_id, turn in enumerate(dialog[FIELDNAME_DIALOG]):
 
-            print(dialog_id, turn_id)
+            # print(dialog_id, turn_id)
+
+            image_name, scene_label = get_image_name(
+                scene_ids, turn_id
+            )
+            # If dialog contains multiple scenes, map it accordingly.
+            object_map = get_object_mapping(scene_label)
 
             user_uttr = turn.get(FIELDNAME_USER_UTTR, "").replace("\n", " ").strip()
             user_belief = turn.get(FIELDNAME_BELIEF_STATE, {})
@@ -433,8 +463,9 @@ def convert_json_to_json(
                 data_instance["turn_id"] = turn_id
                 data_instance["input_text"] = context
                 data_instance["object_map"] = object_map
+                data_instance["image_name"] = image_name
                 # actually coref
-                data_instance["ambiguous_candidates"] = [str(o) for o in user_belief.get("act_attributes", {}).get("objects", [])]
+                data_instance["ambiguous_candidates"] = [o for o in user_belief.get("act_attributes", {}).get("objects", [])]
 
                 # Format the main input
                 predict = TEMPLATE_PREDICT.format(
@@ -454,9 +485,9 @@ def convert_json_to_json(
                         END_OF_SENTENCE=END_OF_SENTENCE,
                     )
                     targets.append(data_instance.copy())
-                    print(dialog_id, turn_id, data_instance)
-                    print(len(targets))
-                    print()
+                    # print(dialog_id, turn_id, data_instance)
+                    # print(len(targets))
+                    # print()
 
                 # NOTE: Retrieval options w/ belief states is not implemented.
             else:
@@ -515,13 +546,18 @@ def convert_json_to_json(
     if not os.path.exists(directory):
         os.makedirs(directory, exist_ok=True)
 
-    print("before file", len(targets))
+    print("before file", len(predicts))
 
     # Output into text files
     with open(output_path_predict, "w") as f_predict:
         # X = "\n".join(predicts)
         # f_predict.write(X)
-        json.dump(predicts, f_predict)
+        output = {
+            "source_path": input_path_json,
+            "split": input_path_json.replace(".json", "").split("_")[-1],
+            "data": predicts,
+        }
+        json.dump(output, f_predict)
 
     if output_target:
         with open(output_path_target, "w") as f_target:
@@ -571,7 +607,7 @@ def represent_visual_objects(object_ids):
     str_objects = ' '.join(list_str_objects)
     """
     str_objects = ", ".join([str(o) for o in object_ids])
-    return f"{START_OF_MULTIMODAL_CONTEXTS} {str_objects} {END_OF_MULTIMODAL_CONTEXTS}"
+    return f"{START_OF_MULTIMODAL_CONTEXTS}{str_objects}{END_OF_MULTIMODAL_CONTEXTS}"
 
 
 def parse_flattened_results_from_file(path):
