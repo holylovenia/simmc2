@@ -11,7 +11,7 @@ root directory of this source tree.
     The reformatted data is used as input for the GPT-2 based
     DST model baseline.
 """
-from gpt2_dst.utils.convert import convert_json_to_flattened
+from gpt2_dst.utils.convert import convert_json_to_flattened, convert_json_to_json
 import argparse
 
 
@@ -59,6 +59,21 @@ if __name__ == "__main__":
         default=True,
         help="determine whether to output a formatted output for Target",                
     )
+    parser.add_argument(
+        "--no_response",
+        dest="use_response",
+        action="store_false",
+        default=True,
+        help="Determine to provide gt system response or not",
+    )
+
+    parser.add_argument(
+        "--coref",
+        dest="is_coref",
+        action="store_true",
+        default=False,
+        help={"Only for coref"}
+    )
 
     # Options for retrieval evaluation.
     parser.add_argument(
@@ -84,16 +99,33 @@ if __name__ == "__main__":
     print("Belief states: {}".format(args.use_belief_states))
 
     # Convert the data into GPT-2 friendly format
-    convert_json_to_flattened(
-        input_path_json,
-        output_path_predict,
-        output_path_target,
-        input_path_special_tokens=input_path_special_tokens,
-        output_path_special_tokens=output_path_special_tokens,
-        len_context=len_context,
-        use_multimodal_contexts=use_multimodal_contexts,
-        use_belief_states=args.use_belief_states,
-        output_target=args.output_target,
-        input_path_retrieval=input_path_retrieval,
-        output_path_retrieval=output_path_retrieval,
-    )
+    if args.is_coref:
+        convert_json_to_json(
+            input_path_json,
+            output_path_predict,
+            output_path_target,
+            input_path_special_tokens=input_path_special_tokens,
+            output_path_special_tokens=output_path_special_tokens,
+            len_context=len_context,
+            use_multimodal_contexts=use_multimodal_contexts,
+            use_belief_states=args.use_belief_states,
+            output_target=args.output_target,
+            input_path_retrieval=input_path_retrieval,
+            output_path_retrieval=output_path_retrieval,
+            use_response=args.use_response,
+        )
+    else:
+        convert_json_to_flattened(
+            input_path_json,
+            output_path_predict,
+            output_path_target,
+            input_path_special_tokens=input_path_special_tokens,
+            output_path_special_tokens=output_path_special_tokens,
+            len_context=len_context,
+            use_multimodal_contexts=use_multimodal_contexts,
+            use_belief_states=args.use_belief_states,
+            output_target=args.output_target,
+            input_path_retrieval=input_path_retrieval,
+            output_path_retrieval=output_path_retrieval,
+            use_response=args.use_response,
+        )

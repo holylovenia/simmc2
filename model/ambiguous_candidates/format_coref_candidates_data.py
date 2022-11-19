@@ -71,7 +71,7 @@ def main(args):
             for turn_ind, turn_datum in enumerate(dialog_datum["dialogue"]):
                 history.append(turn_datum["transcript"])
 
-                annotations = turn_datum["transcript_annotated"]
+                annotations = turn_datum["system_transcript_annotated"]
                 label = annotations["act_attributes"]["objects"]
                 image_name, scene_label = get_image_name(
                     dialog_datum["scene_ids"], turn_ind

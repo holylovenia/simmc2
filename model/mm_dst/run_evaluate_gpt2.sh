@@ -8,7 +8,7 @@ fi
 
 # Evaluate (multi-modal)
 CUDA_VISIBLE_DEVICES=0 python -m gpt2_dst.scripts.evaluate \
-    --input_path_target=/home/holy/projects/ambiguous-mm-dialogue/preprocessed_data/mm_coref/gpt2_dst/data/simmc2.1_dials_dstc11_devtest_target.txt \
+    --input_path_target="/home/holy/projects/ambiguous-mm-dialogue/preprocessed_data/mm_dst|mm/gpt2_dst/data/simmc2.1_dials_dstc11_devtest_target.txt" \
     --input_path_predicted="${PATH_DIR}"/results/simmc2.1_dials_dstc11_devtest_predicted.txt \
     --output_path_report="${PATH_DIR}"/results/simmc2.1_dials_dstc11_devtest_report.json
 

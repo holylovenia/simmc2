@@ -25,7 +25,7 @@ FIELDNAME_SYSTEM_STATE = "system_transcript_annotated"
 # Templates for GPT-2 formatting
 START_OF_MULTIMODAL_CONTEXTS = "<SOM>"
 END_OF_MULTIMODAL_CONTEXTS = "<EOM>"
-START_BELIEF_STATE = "=> Belief State :"
+START_BELIEF_STATE = "=> Objects:"
 START_OF_RESPONSE = "<SOR>"
 END_OF_BELIEF = "<EOB>"
 END_OF_SENTENCE = "<EOS>"
@@ -40,6 +40,10 @@ TEMPLATE_TARGET = (
 TEMPLATE_PREDICT_NOBELIEF = "{context} {START_OF_RESPONSE} "
 TEMPLATE_TARGET_NOBELIEF = "{context} {START_OF_RESPONSE} {response} {END_OF_SENTENCE}"
 
+# No belief state and response predictions and target.
+TEMPLATE_PREDICT_NOBELIEF_NORESPONSE = "{context} "
+TEMPLATE_TARGET_NOBELIEF_NORESPONSE = "{context} {END_OF_SENTENCE}"
+
 
 def convert_json_to_flattened(
     input_path_json,
@@ -53,6 +57,7 @@ def convert_json_to_flattened(
     output_path_retrieval=None,
     input_path_special_tokens="",
     output_path_special_tokens="",
+    use_response=True,
 ):
     """
     Input: JSON representation of the dialogs
@@ -86,13 +91,15 @@ def convert_json_to_flattened(
         additional_special_tokens = []
         if use_belief_states:
             additional_special_tokens.append(END_OF_BELIEF)
-        else:
+        if use_response:
             additional_special_tokens.append(START_OF_RESPONSE)
         if use_multimodal_contexts:
             additional_special_tokens.extend(
                 [START_OF_MULTIMODAL_CONTEXTS, END_OF_MULTIMODAL_CONTEXTS]
             )
         special_tokens["additional_special_tokens"] = additional_special_tokens
+
+    print(special_tokens, use_multimodal_contexts)
 
     if output_path_special_tokens != "":
         # If a new output path for special tokens is given,
@@ -117,6 +124,7 @@ def convert_json_to_flattened(
             if prev_asst_uttr:
                 context += f"System : {prev_asst_uttr} "
                 if use_multimodal_contexts:
+                    print("HAIHAIHAI")
                     # Add multimodal contexts
                     visual_objects = prev_turn[FIELDNAME_SYSTEM_STATE][
                         "act_attributes"
@@ -198,21 +206,37 @@ def convert_json_to_flattened(
 
                 # NOTE: Retrieval options w/ belief states is not implemented.
             else:
-                # Format the main input
-                predict = TEMPLATE_PREDICT_NOBELIEF.format(
-                    context=context, START_OF_RESPONSE=START_OF_RESPONSE
-                )
-                predicts.append(predict)
 
-                # Format the main output
-                if output_target:
-                    target = TEMPLATE_TARGET_NOBELIEF.format(
-                        context=context,
-                        response=asst_uttr,
-                        END_OF_SENTENCE=END_OF_SENTENCE,
-                        START_OF_RESPONSE=START_OF_RESPONSE,
+                if use_response:
+                    # Format the main input
+                    predict = TEMPLATE_PREDICT_NOBELIEF.format(
+                        context=context, START_OF_RESPONSE=START_OF_RESPONSE
                     )
-                    targets.append(target)
+                    predicts.append(predict)
+
+                    # Format the main output
+                    if output_target:
+                        target = TEMPLATE_TARGET_NOBELIEF.format(
+                            context=context,
+                            response=asst_uttr,
+                            END_OF_SENTENCE=END_OF_SENTENCE,
+                            START_OF_RESPONSE=START_OF_RESPONSE,
+                        )
+                        targets.append(target)
+                else:
+                    # Format the main input
+                    predict = TEMPLATE_PREDICT_NOBELIEF_NORESPONSE.format(
+                        context=context
+                    )
+                    predicts.append(predict)
+
+                    # Format the main output
+                    if output_target:
+                        target = TEMPLATE_TARGET_NOBELIEF_NORESPONSE.format(
+                            context=context,
+                            END_OF_SENTENCE=END_OF_SENTENCE,
+                        )
+                        targets.append(target)
 
                 # Add retrieval options is necessary.
                 if format_retrieval_options:
@@ -246,6 +270,265 @@ def convert_json_to_flattened(
         with open(output_path_target, "w") as f_target:
             Y = "\n".join(targets)
             f_target.write(Y)
+
+    # Write retrieval candidates if necessary.
+    if format_retrieval_options:
+        # Create a directory if it does not exist
+        directory = os.path.dirname(output_path_retrieval)
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+        with open(output_path_retrieval, "w") as file_id:
+            file_id.write("\n".join(retrieval_targets))
+
+    if output_path_special_tokens != "":
+        # Create a directory if it does not exist
+        directory = os.path.dirname(output_path_special_tokens)
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+
+        with open(output_path_special_tokens, "w") as f_special_tokens:
+            # Add oov's (acts and slot names, etc.) to special tokens as well
+            special_tokens["additional_special_tokens"].extend(list(oov))
+            json.dump(special_tokens, f_special_tokens)
+
+
+def convert_json_to_json(
+    input_path_json,
+    output_path_predict,
+    output_path_target,
+    len_context=2,
+    use_multimodal_contexts=True,
+    use_belief_states=True,
+    output_target=True,
+    input_path_retrieval=None,
+    output_path_retrieval=None,
+    input_path_special_tokens="",
+    output_path_special_tokens="",
+    use_response=True,
+):
+    """
+    Input: JSON representation of the dialogs
+    Output: line-by-line stringified representation of each turn
+    """
+
+    with open(input_path_json, "r") as f_in:
+        data = json.load(f_in)["dialogue_data"]
+
+    # If input_path_retrieval is not None, also encode retrieval options.
+    if input_path_retrieval is not None:
+        with open(input_path_retrieval, "r") as file_id:
+            retrieval_options = json.load(file_id)
+        format_retrieval_options = True
+        options_pool = retrieval_options["system_transcript_pool"]
+        options_dict = {
+            ii["dialogue_idx"]: ii
+            for ii in retrieval_options["retrieval_candidates"]
+        }
+        retrieval_targets = []
+    else:
+        format_retrieval_options = False
+
+    predicts = []
+    targets = []
+    if input_path_special_tokens != "":
+        with open(input_path_special_tokens, "r") as f_in:
+            special_tokens = json.load(f_in)
+    else:
+        special_tokens = {"eos_token": END_OF_SENTENCE}
+        additional_special_tokens = []
+        if use_belief_states:
+            additional_special_tokens.append(END_OF_BELIEF)
+        if use_response:
+            additional_special_tokens.append(START_OF_RESPONSE)
+        if use_multimodal_contexts:
+            additional_special_tokens.extend(
+                [START_OF_MULTIMODAL_CONTEXTS, END_OF_MULTIMODAL_CONTEXTS]
+            )
+        special_tokens["additional_special_tokens"] = additional_special_tokens
+
+    print(special_tokens, use_multimodal_contexts)
+
+    if output_path_special_tokens != "":
+        # If a new output path for special tokens is given,
+        # we track new OOVs
+        oov = set()
+
+    for _, dialog in enumerate(data):
+
+        # print(dialog)
+        # quit()
+
+        domain = dialog["domain"]
+        dialog_id = dialog["dialogue_idx"]
+        object_map = dialog["object_map"]
+        prev_asst_uttr = None
+        prev_turn = None
+        lst_context = []
+
+        data_instance = {}
+        for turn_id, turn in enumerate(dialog[FIELDNAME_DIALOG]):
+
+            print(dialog_id, turn_id)
+
+            user_uttr = turn.get(FIELDNAME_USER_UTTR, "").replace("\n", " ").strip()
+            user_belief = turn.get(FIELDNAME_BELIEF_STATE, {})
+            asst_uttr = turn.get(FIELDNAME_ASST_UTTR, "").replace("\n", " ").strip()
+
+            # Format main input context
+            context = ""
+            if prev_asst_uttr:
+                context += f"|{prev_asst_uttr}" if context != "" else prev_asst_uttr
+                if use_multimodal_contexts:
+                    # Add multimodal contexts
+                    visual_objects = prev_turn[FIELDNAME_SYSTEM_STATE][
+                        "act_attributes"
+                    ]["objects"]
+                    context += represent_visual_objects(visual_objects)
+
+            context += f"|{user_uttr}"
+            prev_asst_uttr = asst_uttr
+            prev_turn = turn
+
+            # Add multimodal contexts -- user shouldn't have access to ground-truth
+            """
+            if use_multimodal_contexts:
+                visual_objects = turn[FIELDNAME_BELIEF_STATE]['act_attributes']['objects']
+                context += ' ' + represent_visual_objects(visual_objects)
+            """
+
+            # Concat with previous contexts
+            lst_context.append(context)
+            context = "|".join(lst_context[-len_context:])
+            context = context.split("|")
+            context = [c.strip() for c in context if c.strip() != ""]
+
+            # Format belief state
+            if use_belief_states:
+                belief_state = []
+                # for bs_per_frame in user_belief:
+                str_belief_state_per_frame = (
+                    " < {objects} > | {disamb_candidates} |".format(
+                        objects=", ".join(
+                            [str(o) for o in user_belief.get("act_attributes", {}).get("objects", [])]
+                        ),
+                        disamb_candidates=", ".join(
+                            [str(o) for o in user_belief.get("disambiguation_candidates", [])]
+                        ),
+                    )
+                )
+                belief_state.append(str_belief_state_per_frame)
+
+                # Track OOVs
+                if output_path_special_tokens != "":
+                    oov.add(user_belief.get("act", ""))
+                    for slot_name in user_belief.get("act_attributes", {}).get("slot_values", {}):
+                        oov.add(str(slot_name))
+                        # slot_name, slot_value = kv[0].strip(), kv[1].strip()
+                        # oov.add(slot_name)
+                        # oov.add(slot_value)
+
+                str_belief_state = " ".join(belief_state)
+
+                data_instance["dialog_id"] = dialog_id
+                data_instance["turn_id"] = turn_id
+                data_instance["input_text"] = context
+                data_instance["object_map"] = object_map
+                # actually coref
+                data_instance["ambiguous_candidates"] = [str(o) for o in user_belief.get("act_attributes", {}).get("objects", [])]
+
+                # Format the main input
+                predict = TEMPLATE_PREDICT.format(
+                    context=context,
+                    START_BELIEF_STATE=START_BELIEF_STATE,
+                )
+                predicts.append(data_instance.copy())
+
+                # Format the main output
+                if output_target:
+                    target = TEMPLATE_TARGET.format(
+                        context=context,
+                        START_BELIEF_STATE=START_BELIEF_STATE,
+                        belief_state=str_belief_state,
+                        END_OF_BELIEF=END_OF_BELIEF,
+                        response=asst_uttr,
+                        END_OF_SENTENCE=END_OF_SENTENCE,
+                    )
+                    targets.append(data_instance.copy())
+                    print(dialog_id, turn_id, data_instance)
+                    print(len(targets))
+                    print()
+
+                # NOTE: Retrieval options w/ belief states is not implemented.
+            else:
+
+                if use_response:
+                    # Format the main input
+                    predict = TEMPLATE_PREDICT_NOBELIEF.format(
+                        context=context, START_OF_RESPONSE=START_OF_RESPONSE
+                    )
+                    predicts.append(predict)
+
+                    # Format the main output
+                    if output_target:
+                        target = TEMPLATE_TARGET_NOBELIEF.format(
+                            context=context,
+                            response=asst_uttr,
+                            END_OF_SENTENCE=END_OF_SENTENCE,
+                            START_OF_RESPONSE=START_OF_RESPONSE,
+                        )
+                        targets.append(target)
+                else:
+                    # Format the main input
+                    predict = TEMPLATE_PREDICT_NOBELIEF_NORESPONSE.format(
+                        context=context
+                    )
+                    predicts.append(predict)
+
+                    # Format the main output
+                    if output_target:
+                        target = TEMPLATE_TARGET_NOBELIEF_NORESPONSE.format(
+                            context=context,
+                            END_OF_SENTENCE=END_OF_SENTENCE,
+                        )
+                        targets.append(target)
+
+                # Add retrieval options is necessary.
+                if format_retrieval_options:
+                    turn_options = (
+                        options_dict[dialog_id]["retrieval_candidates"][turn_id]
+                    )
+                    for option_ind in turn_options["retrieval_candidates"]:
+                        retrieval_target = TEMPLATE_TARGET_NOBELIEF.format(
+                            context=context,
+                            response=options_pool[domain][option_ind],
+                            END_OF_SENTENCE=END_OF_SENTENCE,
+                            START_OF_RESPONSE=START_OF_RESPONSE,
+                        )
+                        retrieval_targets.append(retrieval_target)
+
+    # Create a directory if it does not exist
+    directory = os.path.dirname(output_path_predict)
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+    directory = os.path.dirname(output_path_target)
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+    print("before file", len(targets))
+
+    # Output into text files
+    with open(output_path_predict, "w") as f_predict:
+        # X = "\n".join(predicts)
+        # f_predict.write(X)
+        json.dump(predicts, f_predict)
+
+    if output_target:
+        with open(output_path_target, "w") as f_target:
+            # Y = "\n".join(targets)
+            # f_target.write(Y)
+            json.dump(targets, f_target)
+
 
     # Write retrieval candidates if necessary.
     if format_retrieval_options:

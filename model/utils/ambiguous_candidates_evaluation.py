@@ -45,7 +45,7 @@ def compute_precision_recall_f1(n_correct, n_true, n_pred):
 
 
 def evaluate_ambiguous_candidates(
-    gt_labels, model_results, record_instance_results=None
+    gt_labels, model_results, record_instance_results=None, is_actually_coref=False,
 ):
     """Evaluates ambiguous candidates identification subtask.
 
@@ -69,14 +69,23 @@ def evaluate_ambiguous_candidates(
             round_id = round_datum["turn_id"]
             pred_set = set(round_datum["disambiguation_candidates"])
             gt_datum = gt_label_pool[dialog_id]["dialogue"][round_id]
+            # print("gt", gt_datum)
+            # print("pred", round_datum)
+            # quit()
 
-            assert "disambiguation_label" in gt_datum["transcript_annotated"], (
-                "Turn not to be evaluated!"
-            )
+            # assert "disambiguation_label" in gt_datum["transcript_annotated"], (
+            #     "Turn not to be evaluated!"
+            # )
             num_evaluations += 1
-            target_set = set(
-                gt_datum["transcript_annotated"]["disambiguation_candidates"]
-            )
+            if is_actually_coref:
+                target_set = set(
+                    gt_datum["system_transcript_annotated"]["act_attributes"]["objects"]
+                )
+            else:
+                target_set = set(
+                    gt_datum["transcript_annotated"]["disambiguation_candidates"]
+                )
+            print("target", target_set, "| pred", pred_set, "| intersection", pred_set.intersection(target_set))
             num_target_candidates += len(target_set)
             num_pred_candidates += len(pred_set)
             num_overlap_candidates += len(pred_set.intersection(target_set))
