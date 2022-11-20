@@ -21,7 +21,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import argparse
 import json
-
+import os
 import numpy as np
 
 
@@ -43,6 +43,38 @@ def compute_precision_recall_f1(n_correct, n_true, n_pred):
     f1 = 2 * prec * rec / (prec + rec) if (prec + rec) != 0 else 0.
     return rec, prec, f1
 
+def get_image_name(scene_ids, turn_ind):
+    """Given scene ids and turn index, get the image name.
+    """
+    sorted_scene_ids = sorted(
+        ((int(key), val) for key, val in scene_ids.items()),
+        key=lambda x: x[0],
+        reverse=True
+    )
+    # NOTE: Hardcoded to only two scenes.
+    if turn_ind >= sorted_scene_ids[0][0]:
+        scene_label = sorted_scene_ids[0][1]
+    else:
+        scene_label = sorted_scene_ids[1][1]
+    image_label = scene_label
+    if "m_" in scene_label:
+        image_label = image_label.replace("m_", "")
+    print(scene_label)
+    return f"{image_label}.png", scene_label
+
+
+def get_object_mapping(scene_label):
+    """Get the object mapping for a given scene.
+    """
+    scene_json_path = os.path.join(
+        "/home/holy/datasets/simmc2.1/public/", f"{scene_label}_scene.json"
+    )
+    if not os.path.isfile(scene_json_path):
+        scene_json_path = scene_json_path.replace("m_", "")
+    with open(scene_json_path, "r") as file_id:
+        scene_objects = json.load(file_id)["scenes"][0]["objects"]
+    object_map = [ii["index"] for ii in scene_objects]
+    return object_map
 
 def evaluate_ambiguous_candidates(
     gt_labels, model_results, record_instance_results=None, is_actually_coref=False,
@@ -79,13 +111,32 @@ def evaluate_ambiguous_candidates(
             num_evaluations += 1
             if is_actually_coref:
                 target_set = set(
-                    gt_datum["system_transcript_annotated"]["act_attributes"]["objects"]
+                    gt_datum["transcript_annotated"]["act_attributes"]["objects"]
                 )
+                print("WARNING!!!!\nSome of the coref's target_sets do not exist in the object_map.\nFurther bugfix is needed to correctly evaluate coref!")
             else:
                 target_set = set(
                     gt_datum["transcript_annotated"]["disambiguation_candidates"]
                 )
-            print("target", target_set, "| pred", pred_set, "| intersection", pred_set.intersection(target_set))
+            """
+            WARNING!!!!
+            Some of the coref's target_sets do not exist in the object_map.
+            Further bugfix is needed to correctly evaluate coref!
+            """
+            if target_set != set() and pred_set.intersection(target_set) == set():
+                image_name, scene_label = get_image_name(
+                    gt_label_pool[dialog_id]["scene_ids"], round_id
+                )
+                # If dialog contains multiple scenes, map it accordingly.
+                object_map = get_object_mapping(scene_label)
+                if not target_set.issubset(set(object_map)):
+                    print("before", object_map, scene_label)
+                    if "m_" in scene_label:
+                        object_map = get_object_mapping(f"m_{scene_label}")
+                    else:
+                        object_map = get_object_mapping(scene_label.replace("m_", ""))
+                print("dialog_id", dialog_id, "| turn_id", round_id, "| target", target_set, "| pred", pred_set, "| intersection", pred_set.intersection(target_set), "| object_map", object_map)
+                print()
             num_target_candidates += len(target_set)
             num_pred_candidates += len(pred_set)
             num_overlap_candidates += len(pred_set.intersection(target_set))
