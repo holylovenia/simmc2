@@ -59,7 +59,7 @@ def get_image_name(scene_ids, turn_ind):
     image_label = scene_label
     if "m_" in scene_label:
         image_label = image_label.replace("m_", "")
-    print(scene_label)
+    # print(scene_label)
     return f"{image_label}.png", scene_label
 
 
@@ -135,8 +135,15 @@ def evaluate_ambiguous_candidates(
                         object_map = get_object_mapping(f"m_{scene_label}")
                     else:
                         object_map = get_object_mapping(scene_label.replace("m_", ""))
-                print("dialog_id", dialog_id, "| turn_id", round_id, "| target", target_set, "| pred", pred_set, "| intersection", pred_set.intersection(target_set), "| object_map", object_map)
-                print()
+                # print(
+                #     "dialog_id", dialog_id,
+                #     "| turn_id", round_id,
+                #     "| target", target_set,
+                #     "| pred", pred_set,
+                #     "| intersection", pred_set.intersection(target_set),
+                #     "| object_map", object_map,
+                #     "| pred_labels", round_datum["disambiguation_labels"])
+                # print()
             num_target_candidates += len(target_set)
             num_pred_candidates += len(pred_set)
             num_overlap_candidates += len(pred_set.intersection(target_set))
